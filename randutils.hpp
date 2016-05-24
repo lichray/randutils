@@ -76,15 +76,9 @@
  *   An Easy-to-Use Random API
  *
  *   Provides all the power of C++11's random number facility in an easy-to
- *   use wrapper.
+ *   use wrapper, seeded with auto_seed_256 by default.
  *
- *   In normal use, it's accessed via one of the following type aliases, which
- *   also use auto_seed_256 by default
- *
- *       randutils::default_rng
- *       randutils::mt19937_rng
- *
- *   It's discussed in detail at
+ *   Based on
  *       http://www.pcg-random.org/posts/ease-of-use-without-loss-of-power.html
  */
 
@@ -93,7 +87,7 @@
 #include <cstdlib>
 #include <random>
 #include <array>
-#include <functional>  // for std::hash
+#include <functional>
 #include <initializer_list>
 #include <utility>
 #include <type_traits>
@@ -601,14 +595,41 @@ using uniform_distribution = typename std::conditional<
  *       http://www.pcg-random.org/posts/ease-of-use-without-loss-of-power.html
  */
 
-template <typename RandomEngine = std::default_random_engine,
-          typename DefaultSeedSeq = auto_seed_256>
-class random_generator {
+struct RNG_wrapper
+{
+    using result_type = std::uint_fast32_t;
+    static constexpr result_type min()
+    {
+        return 0;
+    }
+    static constexpr result_type max()
+    {
+        return 0xFFFFFFFF;
+    }
+
+    template <class RNG>
+    using my_engine_type = std::independent_bits_engine<RNG, 32, result_type>;
+
+    template <class RNG, class = std::enable_if_t<
+                             !std::is_same<std::decay_t<RNG>, RNG_wrapper>{}>>
+    RNG_wrapper(RNG&& r)
+        : rng(my_engine_type<std::decay_t<RNG>>(std::forward<RNG>(r)))
+    {
+    }
+
+    result_type operator()()
+    {
+        return rng();
+    }
+    std::function<result_type()> rng;
+};
+
+class random_generator
+{
 public:
-    using engine_type       = RandomEngine;
-    using default_seed_type = DefaultSeedSeq;
+    using default_seed_type = auto_seed_256;
 private:
-    engine_type engine_;
+    RNG_wrapper engine_;
 
     // This SFNAE evilness provides a mechanism to cast classes that aren't
     // themselves (technically) Seed Sequences but derive from a seed
@@ -647,10 +668,10 @@ private:
     }
 
 public:
-    template <typename Seeding = default_seed_type,
-              typename... Params>
+    template <typename Seeding = default_seed_type, typename... Params>
     random_generator(Seeding&& seeding = default_seed_type{})
-        : engine_{seed_seq_cast(std::forward<Seeding>(seeding))}
+        : engine_{ std::default_random_engine(
+              seed_seq_cast(std::forward<Seeding>(seeding))) }
     {
         // Nothing (else) to do
     }
@@ -659,35 +680,16 @@ public:
     // redundant overload rather than mixing parameter packs and default
     // arguments.
     //     https://llvm.org/bugs/show_bug.cgi?id=23029
-    template <typename Seeding,
-              typename... Params>
+    template <typename Seeding, typename... Params>
     random_generator(Seeding&& seeding, Params&&... params)
-        : engine_{seed_seq_cast(std::forward<Seeding>(seeding)),
-                  std::forward<Params>(params)...}
+        : engine_{ std::default_random_engine(
+                       seed_seq_cast(std::forward<Seeding>(seeding))),
+                   std::forward<Params>(params)... }
     {
         // Nothing (else) to do
     }
 
-    template <typename Seeding = default_seed_type,
-              typename... Params>
-    void seed(Seeding&& seeding = default_seed_type{})
-    {
-        engine_.seed(seed_seq_cast(seeding));
-    }
-
-    // Work around Clang DR777 bug in Clang 3.6 and earlier by adding a
-    // redundant overload rather than mixing parameter packs and default
-    // arguments.
-    //     https://llvm.org/bugs/show_bug.cgi?id=23029
-    template <typename Seeding,
-              typename... Params>
-    void seed(Seeding&& seeding, Params&&... params)
-    {
-        engine_.seed(seed_seq_cast(seeding), std::forward<Params>(params)...);
-    }
-
-
-    RandomEngine& engine()
+    RNG_wrapper& engine()
     {
         return engine_;
     }
@@ -801,9 +803,6 @@ public:
         return sample(to_go, std::begin(range), std::end(range));
     }
 };
-
-using default_rng = random_generator<std::default_random_engine>;
-using mt19937_rng = random_generator<std::mt19937>;
 
 }
 
