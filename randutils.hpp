@@ -90,6 +90,7 @@
 #include <functional>
 #include <initializer_list>
 #include <utility>
+#include <limits>
 #include <type_traits>
 #include <iterator>
 #include <chrono>
@@ -595,41 +596,48 @@ using uniform_distribution = typename std::conditional<
  *       http://www.pcg-random.org/posts/ease-of-use-without-loss-of-power.html
  */
 
-struct RNG_wrapper
+struct any_engine
 {
     using result_type = std::uint_fast32_t;
+
+private:
+    template <typename Rng>
+    using int32_engine = std::independent_bits_engine<Rng, 32, result_type>;
+
+    std::function<result_type()> rng_;
+
+public:
     static constexpr result_type min()
     {
-        return 0;
+        return std::numeric_limits<result_type>::min();
     }
+
     static constexpr result_type max()
     {
-        return 0xFFFFFFFF;
+        return std::numeric_limits<result_type>::max();
     }
 
-    template <class RNG>
-    using my_engine_type = std::independent_bits_engine<RNG, 32, result_type>;
-
-    template <class RNG, class = std::enable_if_t<
-                             !std::is_same<std::decay_t<RNG>, RNG_wrapper>{}>>
-    RNG_wrapper(RNG&& r)
-        : rng(my_engine_type<std::decay_t<RNG>>(std::forward<RNG>(r)))
+    template <
+        typename Rng, typename T = std::decay_t<Rng>,
+        typename = std::enable_if_t<not std::is_base_of<any_engine, T>::value>>
+    any_engine(Rng&& r)
+        : rng_(int32_engine<T>(std::forward<Rng>(r)))
     {
     }
 
     result_type operator()()
     {
-        return rng();
+        return rng_();
     }
-    std::function<result_type()> rng;
 };
 
 class random_generator
 {
 public:
     using default_seed_type = auto_seed_256;
+
 private:
-    RNG_wrapper engine_;
+    any_engine engine_;
 
     // This SFNAE evilness provides a mechanism to cast classes that aren't
     // themselves (technically) Seed Sequences but derive from a seed
@@ -689,7 +697,7 @@ public:
         // Nothing (else) to do
     }
 
-    RNG_wrapper& engine()
+    any_engine& engine()
     {
         return engine_;
     }
