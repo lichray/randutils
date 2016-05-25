@@ -633,68 +633,22 @@ public:
 
 class random_generator
 {
-public:
-    using default_seed_type = auto_seed_256;
-
-private:
     any_engine engine_;
 
-    // This SFNAE evilness provides a mechanism to cast classes that aren't
-    // themselves (technically) Seed Sequences but derive from a seed
-    // sequence to be passed to functions that require actual Seed Squences.
-    // To do so, the class should provide a the type base_seed_seq and a
-    // base() member function.
-
-    template <typename T>
-    static constexpr bool has_base_seed_seq(typename T::base_seed_seq*)
-    {
-        return true;
-    }
-
-    template <typename T>
-    static constexpr bool has_base_seed_seq(...)
-    {
-        return false;
-    }
-
-
-    template <typename SeedSeqBased>
-    static auto seed_seq_cast(SeedSeqBased&& seq,
-                               typename std::enable_if<
-                                 has_base_seed_seq<SeedSeqBased>(0)>::type* = 0)
-                                        -> decltype(seq.base())
-    {
-        return seq.base();
-    }
-
-    template <typename SeedSeq>
-    static SeedSeq seed_seq_cast(SeedSeq&& seq,
-                                   typename std::enable_if<
-                                     !has_base_seed_seq<SeedSeq>(0)>::type* = 0)
-    {
-        return seq;
-    }
-
 public:
-    template <typename Seeding = default_seed_type, typename... Params>
-    random_generator(Seeding&& seeding = default_seed_type{})
-        : engine_{ std::default_random_engine(
-              seed_seq_cast(std::forward<Seeding>(seeding))) }
+    template <typename Rng = std::default_random_engine,
+              typename T = std::decay_t<Rng>,
+              typename = std::enable_if_t<
+                  not std::is_base_of<random_generator, T>::value>>
+    random_generator(Rng&& r = Rng(auto_seed_256().base()))
+        : engine_(std::forward<Rng>(r))
     {
-        // Nothing (else) to do
     }
 
-    // Work around Clang DR777 bug in Clang 3.6 and earlier by adding a
-    // redundant overload rather than mixing parameter packs and default
-    // arguments.
-    //     https://llvm.org/bugs/show_bug.cgi?id=23029
-    template <typename Seeding, typename... Params>
-    random_generator(Seeding&& seeding, Params&&... params)
-        : engine_{ std::default_random_engine(
-                       seed_seq_cast(std::forward<Seeding>(seeding))),
-                   std::forward<Params>(params)... }
+    template <typename Rng>
+    void use()
     {
-        // Nothing (else) to do
+        engine_ = Rng(auto_seed_256().base());
     }
 
     any_engine& engine()
