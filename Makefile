@@ -1,6 +1,6 @@
-# ccconf example CXX=g++49 CXXFLAGS+=-Wall -std=c++1y
+# ccconf example CXX=g++49 CXXFLAGS+=-Wall -std=c++1y -O2
 CXX      = g++49
-CXXFLAGS = -Wall -std=c++1y
+CXXFLAGS = -Wall -std=c++1y -O2
 
 .PHONY : all clean
 all : example
