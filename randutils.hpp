@@ -654,14 +654,33 @@ public:
         return engine_;
     }
 
+    /*
+     * From Python random.normalvariate, Kinderman and Monahan method.
+     *
+     * Reference:
+     * Kinderman, A.J. and Monahan, J.F., "Computer generation of random
+     * variables using the ratio of uniform deviates", ACM Trans Math
+     * Software, 3, (1977), pp257-260.
+     */
     template <typename RealType = double>
     RealType gauss(RealType mean, RealType stddev)
     {
-        return variate(std::normal_distribution<RealType>(mean, stddev));
+        constexpr auto nv = RealType(1.7155277699214135);
+        std::uniform_real_distribution<RealType> nd;
+
+        for (;;)
+        {
+            auto u1 = variate(nd);
+            auto u2 = RealType(1.0) - variate(nd);
+            auto z = nv * (u1 - RealType(0.5)) / u2;
+            auto zz = z * z / RealType(4.0);
+            if (zz <= -std::log(u2))
+                return mean + z * stddev;
+        }
     }
 
     template <typename Dist>
-    auto variate(Dist&& dist) -> typename Dist::result_type
+    auto variate(Dist&& dist)
     {
         return dist(engine_);
     }
