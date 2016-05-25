@@ -39,6 +39,10 @@ int main()
     std::cout << stddev(begin(v), end(v)) << '\n';
 
     for (auto& x : v)
-        x = rng.variate<double>();
+        x = rng.variate(std::normal_distribution<double>());
+    std::cout << stddev(begin(v), end(v)) << '\n';
+
+    for (auto& x : v)
+        x = rng.gauss(0.0, 1.0);
     std::cout << stddev(begin(v), end(v)) << '\n';
 }

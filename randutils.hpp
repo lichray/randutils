@@ -654,20 +654,22 @@ public:
         return engine_;
     }
 
-    template <typename ResultType,
-              template <typename> class DistTmpl = std::normal_distribution,
-              typename... Params>
-    ResultType variate(Params&&... params)
+    template <typename RealType = double>
+    RealType gauss(RealType mean, RealType stddev)
     {
-        DistTmpl<ResultType> dist(std::forward<Params>(params)...);
+        return variate(std::normal_distribution<RealType>(mean, stddev));
+    }
 
+    template <typename Dist>
+    auto variate(Dist&& dist) -> typename Dist::result_type
+    {
         return dist(engine_);
     }
 
     template <typename Numeric>
     Numeric uniform(Numeric lower, Numeric upper)
     {
-        return variate<Numeric,uniform_distribution>(lower, upper);
+        return variate(uniform_distribution<Numeric>(lower, upper));
     }
 
     template <typename Iter>
