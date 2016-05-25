@@ -666,12 +666,15 @@ public:
     RealType gauss(RealType mean, RealType stddev)
     {
         constexpr auto nv = RealType(1.7155277699214135);
-        std::uniform_real_distribution<RealType> nd;
+        auto random = [=]
+        {
+            return std::generate_canonical<RealType, 32>(engine_);
+        };
 
         for (;;)
         {
-            auto u1 = variate(nd);
-            auto u2 = RealType(1.0) - variate(nd);
+            auto u1 = random();
+            auto u2 = RealType(1.0) - random();
             auto z = nv * (u1 - RealType(0.5)) / u2;
             auto zz = z * z / RealType(4.0);
             if (zz <= -std::log(u2))
