@@ -670,26 +670,32 @@ public:
         return variate<Numeric,uniform_distribution>(lower, upper);
     }
 
-    template <template <typename> class DistTmpl = uniform_distribution,
-              typename Iter,
-              typename... Params>
-    void generate(Iter first, Iter last, Params&&... params)
+    template <typename Iter>
+    void generate(Iter first, Iter last)
     {
-        using result_type =
-           typename std::remove_reference<decltype(*(first))>::type;
-
-        DistTmpl<result_type> dist(std::forward<Params>(params)...);
-
-        std::generate(first, last, [&]{ return dist(engine_); });
+        using T = typename std::iterator_traits<Iter>::value_type;
+        generate(uniform_distribution<T>(), first, last);
     }
 
-    template <template <typename> class DistTmpl = uniform_distribution,
-              typename Range,
-              typename... Params>
-    void generate(Range&& range, Params&&... params)
+    template <typename Dist, typename Iter>
+    void generate(Dist&& dist, Iter first, Iter last)
     {
-        generate<DistTmpl>(std::begin(range), std::end(range),
-                           std::forward<Params>(params)...);
+        std::generate(first, last, [&]
+                      {
+                          return dist(engine_);
+                      });
+    }
+
+    template <typename Range>
+    void generate(Range&& range)
+    {
+        generate(std::begin(range), std::end(range));
+    }
+
+    template <typename Dist, typename Range>
+    void generate(Dist&& dist, Range&& range)
+    {
+        generate(std::forward<Dist>(dist), std::begin(range), std::end(range));
     }
 
     template <typename Iter>

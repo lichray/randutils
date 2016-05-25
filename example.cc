@@ -31,7 +31,11 @@ int main()
     std::cout << rng.uniform(1000, 2000) << '\n';
 
     std::vector<double> v(10000);
-    rng.generate<std::normal_distribution>(begin(v), end(v));
+
+    rng.generate(begin(v), end(v));
+    std::cout << stddev(begin(v), end(v)) << '\n';
+
+    rng.generate(std::normal_distribution<double>(), v);
     std::cout << stddev(begin(v), end(v)) << '\n';
 
     for (auto& x : v)
