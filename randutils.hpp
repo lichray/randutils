@@ -96,6 +96,14 @@
 #include <chrono>
 #include <thread>
 #include <algorithm>
+#include <numeric>
+
+#if defined(_MSC_VER)
+    #include <ciso646>
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
+#endif
 
 // Ugly platform-specific code for auto_seeded
 
@@ -668,7 +676,8 @@ public:
         constexpr auto nv = RealType(1.7155277699214135);
         auto random = [=]
         {
-            return std::generate_canonical<RealType, 32>(engine_);
+            return std::generate_canonical<RealType,
+                std::numeric_limits<RealType>::digits>(engine_);
         };
 
         for (;;)
